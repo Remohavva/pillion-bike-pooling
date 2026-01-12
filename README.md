@@ -105,3 +105,16 @@ The system follows a stateless API architecture, allowing seamless communication
 ## 📜 License
 
 This project is licensed under the MIT License.
+
+## project structure
+backend/
+├── app/
+│   ├── models.py      # Database models
+│   ├── schemas.py     # Pydantic schemas
+│   ├── auth.py        # JWT authentication
+│   ├── services.py    # Business logic
+│   └── routes/        # API endpoints
+├── main.py           # FastAPI app
+├── run.py            # Server runner
+└── pillion.db        # SQLite database
+Only for Backend
