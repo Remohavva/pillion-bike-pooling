@@ -80,11 +80,11 @@ export default function HelmetCheckScreen({ navigation, route }) {
     try {
       const token = await getAccessToken();
       
-      // Upload image (mock implementation)
-      const uploadResult = await ApiService.uploadHelmetImage(capturedImage, token);
+      // Upload image
+      const uploadResult = await ApiService.uploadHelmetImage(capturedImage.uri, token);
       
       if (uploadResult.success) {
-        // Verify helmet (mock implementation)
+        // Verify helmet
         const verifyResult = await ApiService.verifyHelmet(
           rideId || 1,
           uploadResult.data.image_url,
@@ -116,7 +116,7 @@ export default function HelmetCheckScreen({ navigation, route }) {
           );
         }
       } else {
-        Alert.alert('Error', 'Failed to upload image');
+        Alert.alert('Error', uploadResult.error || 'Failed to upload image');
       }
     } catch (error) {
       Alert.alert('Error', 'Verification failed. Please try again.');

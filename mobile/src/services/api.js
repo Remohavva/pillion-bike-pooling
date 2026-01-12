@@ -69,15 +69,55 @@ class ApiService {
     });
   }
 
-  // Helmet verification endpoints (to be implemented)
-  async uploadHelmetImage(imageData, token) {
-    // TODO: Implement helmet image upload
-    return { success: true, data: { image_url: 'placeholder' } };
+  // Helmet verification endpoints
+  async uploadHelmetImage(imageUri, token) {
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'helmet.jpg',
+      });
+
+      const response = await fetch(`${this.baseURL}/helmet/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Upload failed');
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   }
 
   async verifyHelmet(rideId, imageUrl, token) {
-    // TODO: Implement helmet verification
-    return { success: true, data: { verified: true } };
+    return this.request('/helmet/verify', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        ride_id: rideId,
+        image_url: imageUrl,
+      }),
+    });
+  }
+
+  async getHelmetCheck(rideId, token) {
+    return this.request(`/helmet/check/${rideId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
   }
 }
 
