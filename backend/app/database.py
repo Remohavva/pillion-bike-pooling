@@ -6,9 +6,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://username:password@localhost:5432/pillion_db")
+# Use SQLite for development, PostgreSQL for production
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./pillion.db")
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
