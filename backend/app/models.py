@@ -1,6 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Enum as SQLEnum, Float
 from sqlalchemy.orm import relationship
-from geoalchemy2 import Geometry
 from app.database import Base
 from datetime import datetime
 import enum
@@ -44,9 +43,11 @@ class Ride(Base):
     title = Column(String, nullable=False)
     description = Column(Text)
     
-    # Location data using PostGIS
-    start_location = Column(Geometry('POINT'), nullable=False)
-    end_location = Column(Geometry('POINT'), nullable=False)
+    # Location data using simple lat/lng for SQLite
+    start_lat = Column(Float, nullable=False)
+    start_lng = Column(Float, nullable=False)
+    end_lat = Column(Float, nullable=False)
+    end_lng = Column(Float, nullable=False)
     start_address = Column(String, nullable=False)
     end_address = Column(String, nullable=False)
     

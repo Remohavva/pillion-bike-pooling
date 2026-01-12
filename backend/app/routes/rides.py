@@ -1,14 +1,30 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from geoalchemy2.functions import ST_DWithin, ST_GeogFromText, ST_X, ST_Y
 from app.database import get_db
 from app.models import Ride, User, RideStatus
 from app.schemas import RideCreate, RideResponse, LocationQuery
 from app.auth import get_current_user
 from typing import List
+import math
 
 router = APIRouter()
+
+def calculate_distance(lat1, lng1, lat2, lng2):
+    """Calculate distance between two points using Haversine formula"""
+    R = 6371  # Earth's radius in kilometers
+    
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lng = math.radians(lng2 - lng1)
+    
+    a = (math.sin(delta_lat / 2) ** 2 + 
+         math.cos(lat1_rad) * math.cos(lat2_rad) * 
+         math.sin(delta_lng / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c
 
 @router.post("/create", response_model=RideResponse)
 async def create_ride(
@@ -25,17 +41,15 @@ async def create_ride(
             detail="Only bike hosts can create rides"
         )
     
-    # Create PostGIS POINT geometries
-    start_point = f"POINT({ride_data.start_lng} {ride_data.start_lat})"
-    end_point = f"POINT({ride_data.end_lng} {ride_data.end_lat})"
-    
     # Create new ride
     db_ride = Ride(
         host_id=current_user.id,
         title=ride_data.title,
         description=ride_data.description,
-        start_location=func.ST_GeogFromText(start_point),
-        end_location=func.ST_GeogFromText(end_point),
+        start_lat=ride_data.start_lat,
+        start_lng=ride_data.start_lng,
+        end_lat=ride_data.end_lat,
+        end_lng=ride_data.end_lng,
         start_address=ride_data.start_address,
         end_address=ride_data.end_address,
         departure_time=ride_data.departure_time,
@@ -58,10 +72,10 @@ async def create_ride(
         departure_time=db_ride.departure_time,
         max_passengers=db_ride.max_passengers,
         status=db_ride.status,
-        start_lat=ride_data.start_lat,
-        start_lng=ride_data.start_lng,
-        end_lat=ride_data.end_lat,
-        end_lng=ride_data.end_lng,
+        start_lat=db_ride.start_lat,
+        start_lng=db_ride.start_lng,
+        end_lat=db_ride.end_lat,
+        end_lng=db_ride.end_lng,
         created_at=db_ride.created_at
     )
 
@@ -71,53 +85,37 @@ async def get_nearby_rides(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get rides near a specific location using PostGIS"""
+    """Get rides near a specific location"""
     
-    # Create user location point
-    user_point = f"POINT({location.lng} {location.lat})"
-    
-    # Query rides within radius using PostGIS
-    # ST_DWithin with geography type uses meters
-    radius_meters = location.radius_km * 1000
-    
+    # Get all available rides
     rides = db.query(Ride).filter(
-        Ride.status.in_([RideStatus.CREATED, RideStatus.REQUESTED]),
-        ST_DWithin(
-            Ride.start_location,
-            func.ST_GeogFromText(user_point),
-            radius_meters
-        )
+        Ride.status.in_([RideStatus.CREATED, RideStatus.REQUESTED])
     ).all()
     
-    # Convert to response format
-    ride_responses = []
+    # Filter by distance
+    nearby_rides = []
     for ride in rides:
-        # Extract coordinates from PostGIS geometry
-        start_coords = db.query(
-            ST_X(ride.start_location).label('lng'),
-            ST_Y(ride.start_location).label('lat')
-        ).first()
+        distance = calculate_distance(
+            location.lat, location.lng,
+            ride.start_lat, ride.start_lng
+        )
         
-        end_coords = db.query(
-            ST_X(ride.end_location).label('lng'),
-            ST_Y(ride.end_location).label('lat')
-        ).first()
-        
-        ride_responses.append(RideResponse(
-            id=ride.id,
-            host_id=ride.host_id,
-            title=ride.title,
-            description=ride.description,
-            start_address=ride.start_address,
-            end_address=ride.end_address,
-            departure_time=ride.departure_time,
-            max_passengers=ride.max_passengers,
-            status=ride.status,
-            start_lat=start_coords.lat,
-            start_lng=start_coords.lng,
-            end_lat=end_coords.lat,
-            end_lng=end_coords.lng,
-            created_at=ride.created_at
-        ))
+        if distance <= location.radius_km:
+            nearby_rides.append(RideResponse(
+                id=ride.id,
+                host_id=ride.host_id,
+                title=ride.title,
+                description=ride.description,
+                start_address=ride.start_address,
+                end_address=ride.end_address,
+                departure_time=ride.departure_time,
+                max_passengers=ride.max_passengers,
+                status=ride.status,
+                start_lat=ride.start_lat,
+                start_lng=ride.start_lng,
+                end_lat=ride.end_lat,
+                end_lng=ride.end_lng,
+                created_at=ride.created_at
+            ))
     
-    return ride_responses
+    return nearby_rides

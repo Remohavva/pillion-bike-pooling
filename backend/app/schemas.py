@@ -1,11 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
 from app.models import UserRole, RideStatus
 
 # User schemas
 class UserBase(BaseModel):
-    email: EmailStr
+    email: str
     phone: str
     full_name: str
     role: UserRole = UserRole.RIDER
